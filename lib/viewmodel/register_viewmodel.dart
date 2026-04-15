@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 
-class LoginViewModel extends ChangeNotifier {
+class RegisterViewModel extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
   bool isLoading = false;
   String errorMessage = '';
 
-  Future<bool> login(String email, String password) async {
+  Future<bool> register(String name, String email, String password) async {
     isLoading = true;
     errorMessage = '';
     notifyListeners();
@@ -15,10 +15,10 @@ class LoginViewModel extends ChangeNotifier {
     try {
       await Future.delayed(const Duration(seconds: 1));
 
-      bool success = await _authService.login(email, password);
+      bool success = await _authService.register(name, email, password);
 
       if (!success) {
-        errorMessage = 'Correo o contraseña incorrectos';
+        errorMessage = 'Este correo ya está registrado';
       }
 
       isLoading = false;
@@ -26,7 +26,7 @@ class LoginViewModel extends ChangeNotifier {
       return success;
     } catch (e) {
       isLoading = false;
-      errorMessage = 'Hubo un error al intentar entrar';
+      errorMessage = 'Error al crear la cuenta';
       notifyListeners();
       return false;
     }
