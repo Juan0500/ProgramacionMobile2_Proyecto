@@ -7,6 +7,7 @@ import 'view/home_view.dart';
 import 'view/add_task_view.dart';
 import 'view/map_view.dart';
 import 'view/payment_view.dart';
+import 'view/all_habits_view.dart';
 import 'viewmodel/login_viewmodel.dart';
 import 'viewmodel/register_viewmodel.dart';
 
@@ -39,6 +40,7 @@ class AppHabitos extends StatelessWidget {
         '/add_task': (context) => const AddTaskView(),
         '/map': (context) => const MapView(),
         '/payment': (context) => const PaymentView(),
+        '/all_habits': (context) => const AllHabitsView(),
       },
     );
   }

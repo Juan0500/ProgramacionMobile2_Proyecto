@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../theme.dart';
 import '../viewmodel/add_task_viewmodel.dart';
 
@@ -29,7 +30,7 @@ class AddTaskView extends StatelessWidget {
         ),
         body: Consumer<AddTaskViewModel>(
           builder: (context, viewModel, child) {
-            bool isGeofence = viewModel.selectedType == TaskType.geofence;
+            bool isGeofence = viewModel.selectedType == TaskType.geocerca;
             
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -106,16 +107,16 @@ class AddTaskView extends StatelessWidget {
           context,
           'Común',
           Icons.schedule,
-          viewModel.selectedType == TaskType.common,
-          () => viewModel.updateTaskType(TaskType.common),
+          viewModel.selectedType == TaskType.comun,
+          () => viewModel.updateTaskType(TaskType.comun),
         ),
         const SizedBox(width: 16),
         _buildTypeCard(
           context,
           'Geocerca',
           Icons.location_on,
-          viewModel.selectedType == TaskType.geofence,
-          () => viewModel.updateTaskType(TaskType.geofence),
+          viewModel.selectedType == TaskType.geocerca,
+          () => viewModel.updateTaskType(TaskType.geocerca),
           isPro: true,
         ),
       ],
@@ -192,58 +193,81 @@ class AddTaskView extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('DÍAS DE SEMANA', style: Theme.of(context).textTheme.labelSmall),
-              _buildProBadge(context),
+              Text('DÍA ESPECÍFICO (BÁSICO)', style: Theme.of(context).textTheme.labelSmall),
+              Text(
+                viewModel.specificDate != null ? DateFormat('d/M/yyyy').format(viewModel.specificDate!) : 'No seleccionado',
+                style: TextStyle(fontSize: 12, color: viewModel.specificDate != null ? AppTheme.primary : AppTheme.outline),
+              )
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => viewModel.pickSpecificDate(context),
+              icon: const Icon(Icons.calendar_today, size: 16),
+              label: const Text('Elegir Fecha en Calendario'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.surfaceContainerLow,
+                foregroundColor: AppTheme.primary,
+                elevation: 0,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('REPETICIÓN SEMANAL', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: viewModel.isPro ? AppTheme.onSurface : AppTheme.outline)),
+              _buildProBadge(context, active: viewModel.isPro),
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(viewModel.weekDays.length, (index) {
-              bool isSelected = viewModel.selectedDays.contains(index);
-              return GestureDetector(
-                onTap: () => viewModel.toggleDay(index),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.primary : AppTheme.surfaceContainerLow,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      viewModel.weekDays[index],
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : AppTheme.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+          Opacity(
+            opacity: viewModel.isPro ? 1.0 : 0.4,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(viewModel.weekDays.length, (index) {
+                bool isSelected = viewModel.selectedDays.contains(index);
+                return GestureDetector(
+                  onTap: () => viewModel.toggleDay(index),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppTheme.primary : AppTheme.surfaceContainerLow,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        viewModel.weekDays[index],
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : AppTheme.onSurfaceVariant,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            viewModel.selectedDays.length == 7 ? 'Se repite todos los días' : 'Frecuencia personalizada',
-            style: const TextStyle(fontSize: 11, color: AppTheme.outline, fontWeight: FontWeight.normal),
+                );
+              }),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProBadge(BuildContext context) {
+  Widget _buildProBadge(BuildContext context, {bool active = true}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.primaryContainer,
+        color: active ? AppTheme.primaryContainer : AppTheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Text(
+      child: Text(
         'PRO',
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppTheme.primary),
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: active ? AppTheme.primary : AppTheme.outline),
       ),
     );
   }
@@ -394,46 +418,67 @@ class AddTaskView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(isGeofence ? 'PERÍODO ACTIVO' : 'HORARIO', style: Theme.of(context).textTheme.labelSmall),
-          const SizedBox(height: 16),
-          if (isGeofence)
-            Row(
-              children: [
-                Expanded(child: _buildTimeBox('Inicio', viewModel.startTime.format(context))),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Icon(Icons.arrow_forward, color: AppTheme.outlineVariant, size: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(isGeofence ? 'PERÍODO ACTIVO' : 'HORARIO', style: Theme.of(context).textTheme.labelSmall),
+              if (isGeofence)
+                Row(
+                  children: [
+                    const Text('Todo el día', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    Switch(
+                      value: viewModel.isAllDay,
+                      onChanged: viewModel.toggleAllDay,
+                      activeColor: AppTheme.primary,
+                    ),
+                  ],
                 ),
-                Expanded(child: _buildTimeBox('Fin', viewModel.endTime.format(context))),
-              ],
-            )
-          else
-            _buildTimeBox('Hora de Notificación', viewModel.startTime.format(context)),
+            ],
+          ),
+          if (!viewModel.isAllDay) ...[
+            const SizedBox(height: 16),
+            if (isGeofence)
+              Row(
+                children: [
+                  Expanded(child: _buildTimeBox('Inicio', viewModel.startTime.format(context), () => viewModel.pickStartTime(context))),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Icon(Icons.arrow_forward, color: AppTheme.outlineVariant, size: 16),
+                  ),
+                  Expanded(child: _buildTimeBox('Fin', viewModel.endTime.format(context), () => viewModel.pickEndTime(context))),
+                ],
+              )
+            else
+              _buildTimeBox('Hora de Notificación', viewModel.startTime.format(context), () => viewModel.pickStartTime(context)),
+          ]
         ],
       ),
     );
   }
 
-  Widget _buildTimeBox(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, color: AppTheme.outlineVariant)),
-        const SizedBox(height: 4),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
+  Widget _buildTimeBox(String label, String value, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, color: AppTheme.outlineVariant)),
+          const SizedBox(height: 4),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              value,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary),
+            ),
           ),
-          child: Text(
-            value,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -516,11 +561,24 @@ class AddTaskView extends StatelessWidget {
       ),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent),
-        onPressed: () => Navigator.pop(context),
-        child: Text(
-          'GUARDAR ${viewModel.selectedType == TaskType.geofence ? 'GEOCERCA' : 'HÁBITO'}',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1.5),
-        ),
+        onPressed: viewModel.isLoading
+            ? null
+            : () async {
+                bool success = await viewModel.saveTask();
+                if (success) {
+                  Navigator.pop(context);
+                } else if (viewModel.errorMessage.isNotEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(viewModel.errorMessage)),
+                  );
+                }
+              },
+        child: viewModel.isLoading
+            ? const CircularProgressIndicator(color: Colors.white)
+            : Text(
+                'GUARDAR ${viewModel.selectedType == TaskType.geocerca ? 'GEOCERCA' : 'HÁBITO'}',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1.5),
+              ),
       ),
     );
   }

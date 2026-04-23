@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme.dart';
 import '../viewmodel/home_viewmodel.dart';
+import '../model/habit_model.dart';
+import 'package:intl/intl.dart';
 
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
@@ -31,25 +33,33 @@ class HomeView extends StatelessWidget {
             ],
           ),
           actions: [
-            GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/payment'),
-              child: Container(
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'PRO',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
+            Consumer<HomeViewModel>(
+              builder: (context, viewModel, child) {
+                return GestureDetector(
+                  onTap: () {
+                    if (!viewModel.isPro) {
+                      Navigator.pushNamed(context, '/payment').then((_) => viewModel.loadHabits());
+                    }
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: viewModel.isPro ? AppTheme.primary : AppTheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      viewModel.isPro ? 'PRO' : 'BÁSICO',
+                      style: TextStyle(
+                        color: viewModel.isPro ? Colors.white : AppTheme.onSurfaceVariant,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
             const Icon(Icons.notifications_none, color: AppTheme.outline),
             const SizedBox(width: 16),
@@ -57,23 +67,30 @@ class HomeView extends StatelessWidget {
         ),
         body: Consumer<HomeViewModel>(
           builder: (context, viewModel, child) {
+            if (viewModel.isLoading) {
+              return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
+            }
             return ListView(
               padding: const EdgeInsets.all(24),
               children: [
                 _buildHeader(context, viewModel),
                 const SizedBox(height: 32),
-                _buildBentoGrid(context),
+                _buildBentoGrid(context, viewModel),
                 const SizedBox(height: 32),
                 _buildHabitsSection(context, viewModel),
               ],
             );
           },
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => Navigator.pushNamed(context, '/add_task'),
-          backgroundColor: AppTheme.primary,
-          child: const Icon(Icons.add, color: Colors.white),
-          shape: const CircleBorder(),
+        floatingActionButton: Consumer<HomeViewModel>(
+          builder: (context, viewModel, child) {
+            return FloatingActionButton(
+              onPressed: () => Navigator.pushNamed(context, '/add_task').then((_) => viewModel.loadHabits()),
+              backgroundColor: AppTheme.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+              shape: const CircleBorder(),
+            );
+          },
         ),
         bottomNavigationBar: _buildBottomNav(context),
       ),
@@ -89,12 +106,12 @@ class HomeView extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'HOY, 1 DE ABRIL',
+              'HOY, ${DateTime.now().day} DE ${['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'][DateTime.now().month - 1]}',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 11),
             ),
             const SizedBox(height: 4),
             Text(
-              'Hola, Juan',
+              viewModel.userName.isNotEmpty ? 'Hola, ${viewModel.userName.split(" ").first}' : 'Hola!',
               style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 32),
             ),
           ],
@@ -125,7 +142,7 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildBentoGrid(BuildContext context) {
+  Widget _buildBentoGrid(BuildContext context, HomeViewModel viewModel) {
     return Row(
       children: [
         Expanded(
@@ -151,7 +168,7 @@ class HomeView extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('12', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900)),
+                    Text('0', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900)),
                     Text('Días de racha', style: Theme.of(context).textTheme.labelSmall),
                   ],
                 ),
@@ -162,13 +179,18 @@ class HomeView extends StatelessWidget {
         const SizedBox(width: 16),
         Expanded(
           child: GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/payment'),
+            onTap: () {
+              if (!viewModel.isPro) {
+                Navigator.pushNamed(context, '/payment').then((_) => viewModel.loadHabits());
+              }
+            },
             child: Container(
               height: 140,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppTheme.primary,
+                color: viewModel.isPro ? AppTheme.primary : AppTheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(20),
+                border: viewModel.isPro ? null : Border.all(color: AppTheme.outlineVariant.withOpacity(0.3)),
                 boxShadow: [
                   BoxShadow(
                     color: AppTheme.primary.withOpacity(0.1),
@@ -177,21 +199,33 @@ class HomeView extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.workspace_premium, color: AppTheme.primaryContainer, size: 32),
+                  Icon(
+                    viewModel.isPro ? Icons.workspace_premium : Icons.star_border, 
+                    color: viewModel.isPro ? AppTheme.primaryContainer : AppTheme.outline, 
+                    size: 32
+                  ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Plan Pro',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                        viewModel.isPro ? 'Plan Pro' : 'Plan Básico',
+                        style: TextStyle(
+                          color: viewModel.isPro ? Colors.white : AppTheme.onSurface, 
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 18
+                        ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        'Acceso ilimitado',
-                        style: TextStyle(color: Colors.white70, fontSize: 11),
+                        viewModel.isPro ? 'Acceso ilimitado' : 'Mejorar plan',
+                        style: TextStyle(
+                          color: viewModel.isPro ? Colors.white70 : AppTheme.outline, 
+                          fontSize: 11
+                        ),
                       ),
                     ],
                   ),
@@ -205,6 +239,12 @@ class HomeView extends StatelessWidget {
   }
 
   Widget _buildHabitsSection(BuildContext context, HomeViewModel viewModel) {
+    if (viewModel.habits.isEmpty) {
+      return const Text('Aún no tienes hábitos registrados.', style: TextStyle(color: AppTheme.outline));
+    }
+
+    final upcoming = viewModel.upcomingHabits;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -213,27 +253,52 @@ class HomeView extends StatelessWidget {
           children: [
             Text('Mis Hábitos', style: Theme.of(context).textTheme.headlineSmall),
             TextButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.pushNamed(context, '/all_habits');
+              },
               child: const Text('Ver todos', style: TextStyle(color: AppTheme.primary)),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        ...viewModel.habits.map((habit) => _buildHabitCard(context, habit)),
+        ...viewModel.pendingToday.map((habit) => _buildHabitCard(context, habit, isUpcoming: false)),
+        
+        if (viewModel.completedToday.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text('Completados Hoy', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppTheme.outline)),
+          const SizedBox(height: 12),
+          ...viewModel.completedToday.map((habit) => _buildHabitCard(context, habit, isUpcoming: false)),
+        ],
       ],
     );
   }
 
-  Widget _buildHabitCard(BuildContext context, Habit habit) {
+  IconData _getIconData(String iconName) {
+    const icons = {
+      'gym': Icons.fitness_center,
+      'book': Icons.menu_book,
+      'water': Icons.water_drop,
+      'meditation': Icons.self_improvement,
+      'fruit': Icons.apple,
+    };
+    return icons[iconName] ?? Icons.check_circle;
+  }
+
+  Widget _buildHabitCard(BuildContext context, HabitModel habit, {bool isUpcoming = false, bool isRoutine = false}) {
+    final bool isCompleted = !isUpcoming && !isRoutine && habit.completedDates.contains(DateFormat('yyyy-MM-dd').format(DateTime.now()));
+    final iconData = _getIconData(habit.icon);
+    final isGeofence = habit.type == 'geocerca';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: habit.isCompleted ? AppTheme.surfaceContainerHighest.withOpacity(0.5) : AppTheme.surfaceContainerLowest,
+        color: isCompleted ? AppTheme.surfaceContainerHighest.withOpacity(0.5) : AppTheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(20),
+        border: isGeofence ? Border.all(color: AppTheme.primary.withOpacity(0.3), width: 1.5) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.01),
+            color: isGeofence ? AppTheme.primary.withOpacity(0.05) : Colors.black.withOpacity(0.01),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -245,10 +310,10 @@ class HomeView extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: habit.isCompleted ? Colors.white : AppTheme.surfaceContainerLow,
+              color: isGeofence ? AppTheme.primaryContainer : (isCompleted ? Colors.white : AppTheme.surfaceContainerLow),
               shape: BoxShape.circle,
             ),
-            child: Icon(habit.icon, color: habit.isCompleted ? AppTheme.secondary : AppTheme.primary),
+            child: Icon(iconData, color: isGeofence ? AppTheme.primary : (isCompleted ? AppTheme.secondary : AppTheme.primary)),
           ),
           const SizedBox(width: 20),
           Expanded(
@@ -258,45 +323,72 @@ class HomeView extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      habit.title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontSize: 18,
-                            decoration: habit.isCompleted ? TextDecoration.lineThrough : null,
-                            color: habit.isCompleted ? AppTheme.outline : AppTheme.onSurface,
-                          ),
+                    Expanded(
+                      child: Text(
+                        habit.title,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontSize: 18,
+                              decoration: isCompleted ? TextDecoration.lineThrough : null,
+                              color: isCompleted ? AppTheme.outline : AppTheme.onSurface,
+                            ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.surfaceContainerHigh,
+                        color: isGeofence ? AppTheme.primary : AppTheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        habit.time,
+                        isRoutine 
+                            ? 'Repite: ${habit.selectedDays.map((d) => ['L', 'M', 'Mi', 'J', 'V', 'S', 'D'][d]).join(', ')}'
+                            : (isGeofence && habit.isAllDay ? 'Todo el día' : (isGeofence ? '${habit.startTime} - ${habit.endTime}' : habit.startTime)),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                               fontSize: 10,
+                              color: isGeofence ? Colors.white : null,
                             ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_outlined, size: 14, color: AppTheme.outline),
-                    const SizedBox(width: 4),
-                    Text(habit.location, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.outline)),
-                  ],
-                ),
+                const SizedBox(height: 6),
+                if (isGeofence) ...[
+                   Row(
+                     children: [
+                       const Icon(Icons.radar, size: 12, color: AppTheme.primary),
+                       const SizedBox(width: 4),
+                       Text('Radio: ${habit.radius.toInt()}m', style: TextStyle(fontSize: 10, color: AppTheme.primary.withOpacity(0.8), fontWeight: FontWeight.bold)),
+                       const SizedBox(width: 12),
+                       const Icon(Icons.location_on, size: 12, color: AppTheme.outline),
+                       const SizedBox(width: 4),
+                       Text('${habit.latitude}, ${habit.longitude}', style: const TextStyle(fontSize: 10, color: AppTheme.outline)),
+                     ],
+                   ),
+                   const SizedBox(height: 4),
+                ] else ...[
+                   Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 12, color: AppTheme.outline),
+                      const SizedBox(width: 4),
+                      Text('Hábito común', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.outline, fontSize: 10)),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
-          if (!habit.isCompleted)
+          if (!isUpcoming && !isRoutine)
             IconButton(
-              icon: const Icon(Icons.check_circle_outline, color: AppTheme.primary),
-              onPressed: () {},
+              icon: Icon(
+                isCompleted ? Icons.check_circle : Icons.check_circle_outline, 
+                color: AppTheme.primary
+              ),
+              onPressed: () {
+                final viewModel = Provider.of<HomeViewModel>(context, listen: false);
+                viewModel.toggleHabitCompletion(habit.id);
+              },
             ),
         ],
       ),
@@ -330,10 +422,18 @@ class HomeView extends StatelessWidget {
   }
 
   Widget _buildNavItem(BuildContext context, IconData icon, String label, bool isActive, {String? route}) {
-    return GestureDetector(
-      onTap: route != null ? () => Navigator.pushNamed(context, route) : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return Consumer<HomeViewModel>(
+      builder: (context, viewModel, child) {
+        return GestureDetector(
+          onTap: route != null 
+              ? () => Navigator.pushNamed(context, route).then((_) {
+                  if (route == '/add_task') {
+                    viewModel.loadHabits();
+                  }
+                }) 
+              : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: isActive
             ? BoxDecoration(
                 color: AppTheme.primary,
@@ -354,6 +454,8 @@ class HomeView extends StatelessWidget {
           ],
         ),
       ),
+    );
+      },
     );
   }
 }

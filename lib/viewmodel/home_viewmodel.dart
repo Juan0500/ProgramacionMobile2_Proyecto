@@ -1,48 +1,94 @@
 import 'package:flutter/material.dart';
-
-class Habit {
-  final String title;
-  final String time;
-  final String location;
-  final IconData icon;
-  final Color color;
-  final bool isCompleted;
-
-  Habit({
-    required this.title,
-    required this.time,
-    required this.location,
-    required this.icon,
-    required this.color,
-    this.isCompleted = false,
-  });
-}
+import 'package:intl/intl.dart';
+import '../services/habit_service.dart';
+import '../services/auth_service.dart';
+import '../model/habit_model.dart';
 
 class HomeViewModel extends ChangeNotifier {
-  final List<Habit> habits = [
-    Habit(
-      title: 'Meditación Matinal',
-      time: '07:00',
-      location: 'Casa',
-      icon: Icons.check_circle,
-      color: const Color(0xFF6B5D2E),
-      isCompleted: true,
-    ),
-    Habit(
-      title: 'Running 5km',
-      time: '18:30',
-      location: 'Parque Rodó',
-      icon: Icons.directions_run,
-      color: const Color(0xFF9F402D),
-    ),
-    Habit(
-      title: 'Lectura Nocturna',
-      time: '22:00',
-      location: 'Habitación',
-      icon: Icons.book,
-      color: const Color(0xFF77574E),
-    ),
-  ];
+  final HabitService _habitService = HabitService();
+  final AuthService _authService = AuthService();
 
-  double get progress => 0.7;
+  List<HabitModel> habits = [];
+  bool isLoading = true;
+  bool isPro = false;
+  String userName = '';
+
+  HomeViewModel() {
+    loadHabits();
+  }
+
+  Future<void> loadHabits() async {
+    isLoading = true;
+    notifyListeners();
+
+    final user = await _authService.getCurrentUser();
+    if (user != null) {
+      userName = user.name;
+      isPro = user.isPro;
+      habits = await _habitService.getUserHabits(user.id);
+    } else {
+      habits = [];
+    }
+
+    isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> toggleHabitCompletion(String habitId) async {
+    final success = await _habitService.toggleHabitCompletion(habitId, DateTime.now());
+    if (success) {
+      loadHabits(); 
+    }
+  }
+
+  bool isForDate(HabitModel habit, DateTime date) {
+    if (habit.specificDate != null && habit.specificDate!.isNotEmpty) {
+      return habit.specificDate == DateFormat('yyyy-MM-dd').format(date);
+    }
+    int dayIndex = date.weekday - 1; 
+    return habit.selectedDays.contains(dayIndex);
+  }
+  
+  bool isCompletedToday(HabitModel habit) {
+    return habit.completedDates.contains(DateFormat('yyyy-MM-dd').format(DateTime.now()));
+  }
+
+  List<HabitModel> get pendingToday {
+    final now = DateTime.now();
+    return habits.where((h) => isForDate(h, now) && !isCompletedToday(h)).toList();
+  }
+
+  List<HabitModel> get completedToday {
+    final now = DateTime.now();
+    return habits.where((h) => isForDate(h, now) && isCompletedToday(h)).toList();
+  }
+
+  List<HabitModel> get recurringHabits {
+    return habits.where((h) => h.selectedDays.isNotEmpty).toList();
+  }
+
+  Map<DateTime, List<HabitModel>> get upcomingHabits {
+    final Map<DateTime, List<HabitModel>> upcoming = {};
+    final now = DateTime.now();
+
+    for (int i = 1; i <= 30; i++) { // Revisaremos hasta 30 días para no perder hábitos agendados
+      final targetDate = now.add(Duration(days: i));
+      final dateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
+      
+      final habitsForDay = habits.where((h) => h.selectedDays.isEmpty && isForDate(h, targetDate)).toList();
+      if (habitsForDay.isNotEmpty) {
+        upcoming[dateOnly] = habitsForDay;
+      }
+    }
+    
+    return upcoming;
+  }
+
+  double get progress {
+    final todayHabits = habits.where((h) => isForDate(h, DateTime.now())).toList();
+    if (todayHabits.isEmpty) return 0.0;
+    
+    int completed = todayHabits.where((h) => isCompletedToday(h)).length;
+    return completed / todayHabits.length;
+  }
 }
